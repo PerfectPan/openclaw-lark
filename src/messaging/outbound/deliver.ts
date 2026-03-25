@@ -87,7 +87,7 @@ async function sendImMessage(params: {
   client: ReturnType<typeof LarkClient.fromCfg>['sdk'];
   to: string;
   content: string;
-  msgType: 'post' | 'interactive';
+  msgType: 'post' | 'interactive' | 'text';
   replyToMessageId?: string;
   replyInThread?: boolean;
 }): Promise<FeishuSendResult> {
@@ -255,6 +255,45 @@ export async function sendTextLark(params: SendTextLarkParams): Promise<FeishuSe
   const content = buildPostContent(processedText);
 
   return sendImMessage({ client, to, content, msgType: 'post', replyToMessageId, replyInThread });
+}
+
+// ---------------------------------------------------------------------------
+// sendPlainTextLark
+// ---------------------------------------------------------------------------
+
+/**
+ * Parameters for sending a plain text message via Feishu.
+ */
+export interface SendPlainTextLarkParams {
+  /** Plugin configuration. */
+  cfg: ClawdbotConfig;
+  /** Target identifier (chat_id, open_id, or user_id). */
+  to: string;
+  /** Plain text content (no markdown rendering). */
+  text: string;
+  /** When set, the message is sent as a threaded reply. */
+  replyToMessageId?: string;
+  /** When true, the reply appears in the thread instead of main chat. */
+  replyInThread?: boolean;
+  /** Optional account identifier for multi-account setups. */
+  accountId?: string;
+}
+
+/**
+ * Send a plain text message (msg_type: 'text') to a Feishu chat or user.
+ *
+ * Unlike {@link sendTextLark} which uses post/md format with rich rendering,
+ * this function sends raw text without markdown processing. URLs in the text
+ * will NOT trigger Feishu's URL preview card.
+ */
+export async function sendPlainTextLark(params: SendPlainTextLarkParams): Promise<FeishuSendResult> {
+  const { cfg, to, text, replyToMessageId, replyInThread, accountId } = params;
+
+  log.info(`sendPlainTextLark: target=${to}, textLength=${text.length}`);
+  const client = LarkClient.fromCfg(cfg, accountId).sdk;
+  const content = JSON.stringify({ text });
+
+  return sendImMessage({ client, to, content, msgType: 'text', replyToMessageId, replyInThread });
 }
 
 // ---------------------------------------------------------------------------

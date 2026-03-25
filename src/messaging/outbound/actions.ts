@@ -24,7 +24,7 @@ import { readStringParam } from 'openclaw/plugin-sdk/param-readers';
 import { jsonResult, readReactionParams } from '../../core/sdk-compat';
 
 import { addReactionFeishu, removeReactionFeishu, listReactionsFeishu } from './reactions';
-import { sendTextLark, sendCardLark } from './deliver';
+import { sendTextLark, sendCardLark, sendPlainTextLark } from './deliver';
 import { uploadAndSendMediaLark } from './media';
 import { LarkClient } from '../../core/lark-client';
 import { getEnabledLarkAccounts } from '../../core/accounts';
@@ -107,6 +107,7 @@ interface FeishuSendParams {
   replyToMessageId?: string;
   replyInThread: boolean;
   card?: Record<string, unknown>;
+  format?: string;
 }
 
 /**
@@ -143,6 +144,7 @@ function readFeishuSendParams(
     (replyInThread && toolContext?.currentMessageId ? String(toolContext.currentMessageId) : undefined);
 
   const card = parseCardParam(params.card);
+  const format = readStringParam(params, 'format');
 
   return {
     to,
@@ -152,6 +154,7 @@ function readFeishuSendParams(
     replyToMessageId: replyToMessageId ?? undefined,
     replyInThread,
     card,
+    format: format ?? undefined,
   };
 }
 
@@ -242,6 +245,13 @@ async function deliverMessage(
   }
 
   const sendCtx = { cfg, to, replyToMessageId, replyInThread, accountId };
+
+  // Plain text path — sends msg_type: 'text' without markdown rendering.
+  if (sp.format === 'plain' && text.trim() && !card && !mediaUrl) {
+    const result = await sendPlainTextLark({ ...sendCtx, text });
+    log.info(`deliverMessage: plain text sent, messageId=${result.messageId}`);
+    return jsonResult({ ok: true, messageId: result.messageId, chatId: result.chatId });
+  }
 
   // Send text first if both text and card/media are present.
   if (text.trim() && (card || mediaUrl)) {
