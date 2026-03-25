@@ -143,8 +143,19 @@ function readFeishuSendParams(
     readStringParam(params, 'replyTo') ??
     (replyInThread && toolContext?.currentMessageId ? String(toolContext.currentMessageId) : undefined);
 
-  const card = parseCardParam(params.card);
-  const format = readStringParam(params, 'format');
+  let card = parseCardParam(params.card);
+  let format = readStringParam(params, 'format');
+
+  // Allow format to be passed via --card JSON when --format CLI flag is
+  // unavailable.  A card object with only a `format` key is treated as a
+  // format hint, not a real card payload.
+  if (!format && card && typeof card.format === 'string') {
+    const keys = Object.keys(card);
+    if (keys.length === 1 || (keys.length === 2 && typeof card.text === 'string')) {
+      format = card.format as string;
+      card = undefined;
+    }
+  }
 
   return {
     to,
